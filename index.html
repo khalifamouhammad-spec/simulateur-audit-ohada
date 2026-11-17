@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Simulateur d'audit OHADA</title>
+  <link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+  <header class="barre-app">
+    <a class="marque" href="#/">Simulateur d'audit OHADA</a>
+    <nav>
+      <a href="#/" data-route="tableau">Tableau de bord</a>
+      <a href="#/historique" data-route="historique">Historique</a>
+      <a href="#/parametres" data-route="parametres">Paramètres</a>
+    </nav>
+  </header>
+  <div id="vue"><main class="page"><p class="discret">Chargement du logiciel…</p></main></div>
+  <script>
+    // Diagnostic de démarrage : si l'application ne s'affiche pas, on montre la cause au lieu d'une page vide.
+    window.erreursDemarrage = [];
+    window.addEventListener('error', function (e) { window.erreursDemarrage.push((e.message || 'Erreur') + (e.filename ? ' — ' + e.filename.split('/').slice(-2).join('/') + ':' + e.lineno : '') + (e.target && e.target.src ? ' — fichier introuvable : ' + e.target.src : '')); }, true);
+    window.addEventListener('unhandledrejection', function (e) { window.erreursDemarrage.push('Promesse rejetée : ' + (e.reason && e.reason.message || e.reason)); });
+    setTimeout(function () {
+      if (window.logicielDemarre) return;
+      var v = document.getElementById('vue');
+      var details = window.erreursDemarrage.length ? window.erreursDemarrage.join('\n') : 'Aucune erreur signalée par le navigateur (script bloqué ou chargement trop lent).';
+      v.innerHTML = '<main class="page"><div class="message erreur"><strong>Le logiciel n\'a pas pu démarrer.</strong></div>'
+        + '<p>Navigateur : ' + navigator.userAgent.replace(/</g, '&lt;') + '</p><p>Stockage local (IndexedDB) : ' + ('indexedDB' in window ? 'disponible' : 'indisponible') + '</p>'
+        + '<pre style="white-space:pre-wrap;background:#fff;border:1px solid #d5dbe3;padding:.6rem">' + details.replace(/</g, '&lt;') + '</pre>'
+        + '<p>Faites une capture de cette page pour le support. Essayez aussi de recharger avec Ctrl + F5, ou d\'ouvrir <a href="v1/">le premier simulateur</a>.</p></main>';
+    }, 6000);
+  </script>
+  <script type="module" src="js/app.js"></script>
+  <noscript>Cette application nécessite JavaScript.</noscript>
+</body>
+</html>
