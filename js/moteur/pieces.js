@@ -3,7 +3,7 @@
 // pièce (date de livraison, absence de justificatif, duplicata…), jamais par une mention explicite.
 // L'IA peut seulement enrichir le libellé des lignes de facture (voir sections/pieces-ia).
 import { aleatoire, ajouterJours, dateFr, euro } from '../utils.js';
-import { COL } from './plan.js';
+import { COL, estBanque } from './plan.js';
 
 const c = (n) => Math.round(n * 100);
 const e = (x) => x / 100;
@@ -66,8 +66,8 @@ export function construirePiece(ecriture, { dossier, exercice, anomalies = [], d
   }
 
   if (ecriture.journal === 'BQ') {
-    const banque = ecriture.lignes.find((l) => l.compte === '521000');
-    const contre = ecriture.lignes.find((l) => l.compte !== '521000');
+    const banque = ecriture.lignes.find((l) => estBanque(l.compte));
+    const contre = ecriture.lignes.find((l) => !estBanque(l.compte));
     const entree = banque.debit > 0;
     const doc = { ...base, type: 'avis_operation', titre: `Avis d'opération bancaire ${ecriture.piece}`, emetteur: 'Banque du client', destinataire: societe,
       lignes: [{ designation: `${entree ? 'Crédit' : 'Débit'} en compte — ${ecriture.lib}`, montant: e(entree ? banque.debit : banque.credit) }],

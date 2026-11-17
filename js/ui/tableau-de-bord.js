@@ -2,6 +2,8 @@
 import { SECTEURS, TAILLES, NIVEAUX, STATUTS_MISSION, REFERENTIELS } from '../config.js';
 import { db, lireParametres } from '../db.js';
 import { creerDossier, avancement, dureeFr } from '../dossiers.js';
+import { importerDossier } from '../import.js';
+import { decoder } from '../moteur/import-fec.js';
 import { echapper, dateFr } from '../utils.js';
 
 const options = (objet, texte = (v) => v.libelle || v) => Object.entries(objet).map(([k, v]) => `<option value="${k}">${echapper(texte(v))}</option>`).join('');
@@ -15,7 +17,7 @@ export async function afficherTableauDeBord(vue) {
     <main class="page">
       <div class="ligne espace">
         <div><h1>Tableau de bord</h1><p class="discret">Dossiers clients du cabinet (clients fictifs d'entraînement).</p></div>
-        <button class="principal" data-nouveau>+ Nouveau dossier</button>
+        <span class="ligne"><button data-importer>Importer un FEC</button><button class="principal" data-nouveau>+ Nouveau dossier</button></span>
       </div>
       <div class="indicateurs">
         <div class="indicateur"><span>Dossiers</span><strong>${dossiers.length}</strong></div>
@@ -32,7 +34,7 @@ export async function afficherTableauDeBord(vue) {
             return `<tr>
               <td><a href="#/dossier/${d.id}"><strong>${echapper(d.client.nom)}</strong></a><br><span class="discret">${echapper(d.client.formeJuridique)}</span></td>
               <td>${dateFr(d.exercice.cloture)}</td><td>${echapper(SECTEURS[d.parametres.secteur])}</td><td>${TAILLES[d.parametres.taille].libelle}</td>
-              <td>${NIVEAUX[d.parametres.difficulte].libelle}</td>
+              <td>${d.parametres.source === 'import' ? 'Importé' : NIVEAUX[d.parametres.difficulte].libelle}</td>
               <td><span class="pastille ${s.classe}">${s.libelle}</span></td>
               <td class="nombre">${d.correction ? `<a href="#/dossier/${d.id}/H1">${String(d.correction.globale).replace('.', ',')} / 20</a>` : '—'}</td>
               <td><div class="jauge" title="${pct} %"><i style="width:${pct}%"></i></div><span class="discret">${pct} %</span></td>
@@ -68,9 +70,47 @@ export async function afficherTableauDeBord(vue) {
         <p class="discret">Référentiel : ${echapper(REFERENTIELS[parametres.referentiel].libelle)}. Le client et son journal des écritures (N-1 et N) sont générés à partir de ces paramètres.${parametres.cleGroq ? '' : ' Aucune clé Groq enregistrée : utilisez « Créer sans IA » ou saisissez la clé dans les Paramètres.'}</p>
         <div class="ligne fin"><button type="button" data-annuler>Annuler</button><button name="mode" value="local">Créer sans IA</button><button class="principal" name="mode" value="ia" ${parametres.cleGroq ? '' : 'disabled'}>Créer avec l'IA</button></div>
       </form>
+    </dialog>
+    <dialog class="import">
+      <form method="dialog">
+        <h2>Importer un FEC</h2>
+        <p class="discret">Fichier des écritures de l'exercice audité : FEC réglementaire (.txt, 18 colonnes), export du journal général (.csv) ou fichier préparé par Claude. Séparateurs, formats de date et colonnes Débit / Crédit ou Montant + Sens sont reconnus automatiquement.
+        Un dossier importé n'a pas de corrigé automatique : vos travaux et votre opinion sont notés, pas la détection.</p>
+        <label for="i-nom">Nom du client</label><input type="text" id="i-nom" required placeholder="ex. Client importé">
+        <div class="grille">
+          <div><label for="i-secteur">Secteur</label><select id="i-secteur">${options(SECTEURS)}</select></div>
+          <div><label for="i-taille">Taille</label><select id="i-taille">${options(TAILLES, (t) => `${t.libelle} — ${t.description}`)}</select></div>
+        </div>
+        <label for="i-n">Fichier de l'exercice N (obligatoire)</label><input type="file" id="i-n" accept=".txt,.csv,.tsv,.fec" required>
+        <label for="i-n1">Fichier de l'exercice N-1 (facultatif, pour la revue analytique)</label><input type="file" id="i-n1" accept=".txt,.csv,.tsv,.fec">
+        <div data-etat-import></div>
+        <div class="ligne fin"><button type="button" data-annuler-import>Annuler</button><button class="principal" value="ok">Importer</button></div>
+      </form>
     </dialog>`;
 
-  const dialogue = vue.querySelector('dialog');
+  const dialogue = vue.querySelector('dialog:not(.import)');
+  const dialogueImport = vue.querySelector('dialog.import');
+  vue.querySelector('[data-importer]').addEventListener('click', () => dialogueImport.showModal());
+  vue.querySelector('[data-annuler-import]').addEventListener('click', () => dialogueImport.close());
+  dialogueImport.querySelector('form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const etat = dialogueImport.querySelector('[data-etat-import]');
+    const bouton = dialogueImport.querySelector('button[value=ok]');
+    const lire = async (champ) => { const f = dialogueImport.querySelector(champ).files[0]; return f ? { nom: f.name, texte: decoder(new Uint8Array(await f.arrayBuffer())) } : null; };
+    bouton.disabled = true;
+    etat.innerHTML = '<p class="message info">Lecture et contrôle du fichier…</p>';
+    try {
+      const n = await lire('#i-n'); const n1 = await lire('#i-n1');
+      if (!n) throw new Error("Choisissez le fichier de l'exercice N.");
+      const dossier = await importerDossier({ nom: dialogueImport.querySelector('#i-nom').value.trim(), secteur: dialogueImport.querySelector('#i-secteur').value, taille: dialogueImport.querySelector('#i-taille').value,
+        referentiel: parametres.referentiel, fichiers: { N: n.texte, N1: n1?.texte || null }, nomsFichiers: [n.nom, n1?.nom].filter(Boolean) });
+      dialogueImport.close();
+      location.hash = `#/dossier/${dossier.id}`;
+    } catch (err) {
+      etat.innerHTML = `<p class="message erreur" style="white-space:pre-wrap">${echapper(err.message)}</p>`;
+      bouton.disabled = false;
+    }
+  });
   vue.querySelector('[data-nouveau]').addEventListener('click', () => dialogue.showModal());
   vue.querySelector('[data-annuler]').addEventListener('click', () => dialogue.close());
   dialogue.querySelector('form').addEventListener('submit', async (e) => {

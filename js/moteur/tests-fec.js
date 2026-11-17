@@ -1,7 +1,7 @@
 // Tests sur le journal des écritures (ISA 240) : écritures du week-end, montants ronds, paiements
 // juste sous le seuil d'autorisation, doublons, utilisateurs peu fréquents, écritures de fin
 // d'exercice, comptes d'attente, décaissements imputés directement en charges.
-import { COL } from './plan.js';
+import { COL, estBanque } from './plan.js';
 
 const c = (n) => Math.round(n * 100);
 const PIECES_INVENTAIRE = /^(DOT|STK|CP-|IS-|FNP|DTVA|AN|EXT|AG-)/;
@@ -34,7 +34,7 @@ export const TESTS = {
     titre: 'Décaissements juste sous le seuil de double signature (85 à 100 %)',
     description: "Une concentration de paiements juste sous le seuil d'autorisation peut traduire un fractionnement destiné à éviter la double signature.",
     // ctx.seuilAutorisation est exprimé en centimes.
-    executer: (es, ctx) => es.filter((e) => e.journal === 'BQ' && e.lignes.some((l) => l[COL.CompteNum] === '521000' && c(l[COL.Credit]) >= ctx.seuilAutorisation * 0.85 && c(l[COL.Credit]) < ctx.seuilAutorisation)),
+    executer: (es, ctx) => es.filter((e) => e.journal === 'BQ' && e.lignes.some((l) => estBanque(l[COL.CompteNum]) && c(l[COL.Credit]) >= ctx.seuilAutorisation * 0.85 && c(l[COL.Credit]) < ctx.seuilAutorisation)),
   },
   doublons: {
     titre: 'Doublons : même tiers, même montant, à moins de 15 jours d\'intervalle',

@@ -18,10 +18,11 @@ Fonctionnement commun :
 - **Génération d'un dossier client** : je choisis le secteur, la taille (TPE, PME, ETI), la difficulté (débutant, intermédiaire, confirmé) et le nombre d'anomalies cachées (3 à 15).
 - **La comptabilité est générée par le code, pas par l'IA** : deux exercices complets (N-1 et N), 2 000 à 10 000 lignes. Dans la version française c'est un vrai FEC (18 colonnes réglementaires, journaux AN, VE, AC, BQ, PA, OD, lettrage, comptes auxiliaires) ; dans la version OHADA c'est le journal général (journaux AN, VE, AC, BQ, CA, PA, OD). Toutes les écritures sont équilibrées ; le bilan et le compte de résultat sont calculés et contrôlés.
 - **Anomalies cachées** : elles sont tirées d'une bibliothèque de 22 cas fréquents en mission (24 dans la version OHADA). Ventes : cut-off, factures fictives, avoirs après la clôture. Clients : créances anciennes, procédure collective, soldes créditeurs. Achats : factures non parvenues oubliées, doublons de facture ou de paiement, fournisseur inconnu. Stocks surévalués. Immobilisations : charges immobilisées, amortissement oublié, cession non enregistrée. Trésorerie : frais bancaires non comptabilisés, chèque ancien. Personnel : congés payés sous-évalués, charges sociales non rattachées. Fiscal : TVA collectée incohérente, IS mal calculé. Fraude : écritures du week-end, paiements fractionnés sous le seuil d'autorisation. En OHADA s'y ajoutent le manquant de caisse et les retenues sur salaires non reversées à la DGID. Le corrigé n'est visible qu'après la clôture de la mission.
-- **Trois façons de créer un dossier** :
+- **Quatre façons de créer un dossier** :
   - **« Créer sans IA »** : le scénario du client vient d'un modèle intégré. Fonctionne toujours, sans limite.
   - **« Créer avec l'IA »** : l'IA Groq (gratuite, mais limitée en nombre de requêtes) rédige la fiche du client, son contexte et choisit les anomalies ; le code génère ensuite la comptabilité.
   - **« Cas inspiré d'un vrai rapport »** : je colle un extrait de rapport de commissaire aux comptes (par exemple un point clé de l'audit) et l'IA construit un client fictif sur ce modèle, sans nom réel.
+  - **« Importer un FEC »** : je charge un fichier des écritures (FEC .txt, journal .csv, ou un fichier que tu as préparé) pour l'exercice N et, si possible, N-1. L'app contrôle l'équilibre, recalcule les états et crée un dossier complet sur lequel tous les outils fonctionnent. Comme l'app ne connaît pas les anomalies d'un fichier importé, elle ne note pas la détection : c'est toi qui corriges cette partie.
 - **Le dossier suit la structure d'un logiciel de cabinet** :
   - Données comptables : FEC ou journal, balance, états financiers N / N-1.
   - A Acceptation : fiche client, indépendance, lettre de mission.
@@ -64,7 +65,14 @@ Fonctionnement commun :
 
 4. **Créer toi-même des cas quand l'IA de l'app n'est pas disponible** (limite Groq atteinte) ou pour un entraînement ciblé :
    - Invente une entreprise fictive (aucun nom réel) avec son contexte et des facteurs de risque.
-   - Produis un extrait de comptabilité **dans le même format que l'app**, au choix : FEC français à 18 colonnes, ou journal OHADA en CSV. Fournis-le dans un bloc de code ou en fichier téléchargeable, pour que je puisse l'ouvrir dans un tableur.
+   - Produis la comptabilité **dans un fichier importable dans l'app** (bouton « Importer un FEC »), dans un bloc de code ou en fichier téléchargeable :
+     - première ligne = en-tête avec les noms de colonnes ;
+     - colonnes minimales : JournalCode, EcritureNum, EcritureDate, CompteNum, CompteLib, CompAuxNum, CompAuxLib, PieceRef, EcritureLib, Debit, Credit (ou le format d'export OHADA en CSV) ;
+     - séparateur tabulation (.txt) ou point-virgule (.csv) ;
+     - dates AAAAMMJJ ou JJ/MM/AAAA, montants avec virgule décimale ;
+     - toutes les lignes d'une même écriture portent le même numéro, et le fichier est équilibré au total ;
+     - un fichier par exercice : N, et N-1 si possible pour la revue analytique ;
+     - un volume réaliste mais raisonnable (quelques centaines de lignes par exercice), avec les comptes auxiliaires clients et fournisseurs pour que la balance âgée, le lettrage et la circularisation fonctionnent.
    - Cache 1 à 5 anomalies selon mon niveau, sans jamais les révéler avant ma réponse.
    - Respecte les règles comptables :
      - chaque écriture est équilibrée (total débit = total crédit) ;
@@ -73,7 +81,8 @@ Fonctionnement commun :
      - TVA cohérente : 20 % en France, 18 % au Sénégal ;
      - balance équilibrée.
    - Vérifie tes totaux avant de me les donner et indique-les en bas du fichier.
-   - Fais avancer le dossier **au fur et à mesure de la mission**, comme dans la réalité. D'abord la fiche client et la balance N / N-1 pour la planification ; ensuite, à ma demande, le grand livre du cycle étudié, puis le relevé bancaire et l'état de rapprochement, la balance âgée, les réponses de circularisation, les pièces justificatives. Les nouveaux éléments doivent toujours rester cohérents avec ceux déjà fournis.
+   - Garde pour toi la liste des anomalies cachées dans le fichier. Quand j'aurai clôturé le dossier dans l'app, je te soumettrai mes ajustements (E1), ma note de synthèse et mon opinion : corrige-les par rapport à ces anomalies.
+   - Si je préfère travailler dans la conversation, fais avancer le dossier **au fur et à mesure de la mission**, comme dans la réalité. D'abord la fiche client et la balance N / N-1 pour la planification ; ensuite, à ma demande, le grand livre du cycle étudié, puis le relevé bancaire et l'état de rapprochement, la balance âgée, les réponses de circularisation, les pièces justificatives. Les nouveaux éléments doivent toujours rester cohérents avec ceux déjà fournis.
    - Si je te donne un extrait de rapport réel, construis un cas fictif inspiré de ses risques, sans aucun nom réel.
 
 5. **Règles de correction** :

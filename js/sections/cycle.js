@@ -24,6 +24,8 @@ const nombre = (n) => montantOuVide(n) || '0';
 export const ecranCycle = (config) => (zone, ctx) => afficherCycle(zone, ctx, config);
 
 async function afficherCycle(zone, { dossier, donnees, modifie, sauver, lectureSeule }, config) {
+  // Dossier importé : les outils qui reposent sur des documents fictifs du générateur ne sont pas proposés.
+  if (dossier.parametres.source === 'import') config = { ...config, outils: (config.outils || []).filter((o) => !['avoirs', 'factures', 'annonces', 'inventaire', 'pvCaisse'].includes(o)) };
   const N = REFERENTIELS[dossier.parametres.referentiel].normes;
   const annee = Number(dossier.exercice.cloture.slice(0, 4));
   donnees.programme ??= config.programme.map(() => ({ statut: '', commentaire: '', feuille: '' }));

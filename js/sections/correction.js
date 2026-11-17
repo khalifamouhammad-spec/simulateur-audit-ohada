@@ -68,7 +68,7 @@ export async function cloturerMission(dossier, suivi = () => {}) {
   const [corrige, feuilles, documents, n, n1] = await Promise.all([
     db.lire('corriges', dossier.id), listerFeuilles(dossier.id), listerDocuments(dossier.id), lireFec(dossier, 'N'), lireFec(dossier, 'N-1'),
   ]);
-  corrige.anomalies = ajouterTiers(corrige.anomalies, corrige.donnees, n, dossier.tiers);
+  if (corrige) corrige.anomalies = ajouterTiers(corrige.anomalies, corrige.donnees, n, dossier.tiers);
   const seuil = dossier.seuils?.planification || Math.round(dossier.chiffres.N.produitsExploitation * 0.01);
   const r = revueAnalytique(n, n1, seuil);
   const significatifs = [...r.postes, ...r.ratios].filter((x) => x.significatif).map((x) => x.id).concat(r.mensuel.filter((m) => m.significatif).map((m) => 'mois_' + m.mois));
@@ -84,7 +84,7 @@ export async function afficherCorrection(zone, { dossier }) {
   if (dossier.statut !== 'cloturee') return afficherAvantCloture(zone, dossier);
   const corrige = await db.lire('corriges', dossier.id);
   const ev = dossier.correction;
-  const anomalies = new Map(corrige.anomalies.map((a) => [a.id, a]));
+  const anomalies = new Map((corrige?.anomalies || []).map((a) => [a.id, a]));
   const ajustements = new Map((dossier.ajustements || []).map((a) => [a.id, a]));
   const N = REFERENTIELS[dossier.parametres.referentiel].normes;
   const ia = ev.ia;
@@ -130,6 +130,7 @@ export async function afficherCorrection(zone, { dossier }) {
       <h3>Points à retravailler</h3>
       <ul>${(ia?.points?.length ? ia.points : pointsLocaux).map((p) => `<li>${echapper(p)}</li>`).join('') || '<li>Aucun point particulier.</li>'}</ul>
     </div>
+    ${ev.importe ? `<div class="message info"><strong>Dossier importé.</strong> Le logiciel ne connaît pas les anomalies de ce fichier : la détection n'est pas notée et la note globale porte sur les autres sections. Pour la correction des anomalies, soumettez vos ajustements (E1) et votre opinion à Claude ou à votre formateur.</div>` : ''}
     ${blocFinalisation(ev)}
     <h2>Anomalies du périmètre noté (${perimetre.length})</h2>
     ${perimetre.filter((r) => !r.trouvee).map(blocAnomalie).join('')}

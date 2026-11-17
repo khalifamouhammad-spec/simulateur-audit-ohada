@@ -3,7 +3,7 @@
 // Les écarts entre la banque et la comptabilité viennent uniquement des données cachées du dossier
 // (opérations non comptabilisées, chèques jamais débités).
 import { aleatoire, ajouterJours } from '../utils.js';
-import { COL } from './plan.js';
+import { COL, estBanque } from './plan.js';
 
 const c = (n) => Math.round(n * 100);
 const sansAccent = (s) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase();
@@ -28,7 +28,7 @@ export function construireBanque(lignesFec, donnees, { graine, annee, difficulte
   let soldeCompta = 0;
   const mouvements = [];
   for (const l of lignesFec) {
-    if (l[COL.CompteNum] !== '521000') continue;
+    if (!estBanque(l[COL.CompteNum])) continue;
     const m = c(l[COL.Debit]) - c(l[COL.Credit]);
     if (l[COL.JournalCode] === 'AN') { soldeCompta += m; continue; }
     const piece = l[COL.PieceRef];

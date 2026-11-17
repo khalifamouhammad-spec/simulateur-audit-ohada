@@ -6,7 +6,7 @@
 // Chaque outil reçoit ctx = { dossier, annee, lignes (journal N), donnees (données cachées), etat, rendre }
 // et renvoie { html, items } ; items associe la clé d'une case à cocher à la ligne sélectionnable.
 import { aleatoire, ajouterJours, echapper, dateFr, euro, montantOuVide, ecartJours } from '../utils.js';
-import { COL, PLAN } from '../moteur/plan.js';
+import { COL, PLAN, estBanque } from '../moteur/plan.js';
 import { reponsesTiers, confirmationBanque, lettreConfirmation, soldesTiers } from '../moteur/circularisation.js';
 import { construireBanque } from '../moteur/banque.js';
 import { TESTS, executerTest } from '../moteur/tests-fec.js';
@@ -346,7 +346,7 @@ function circularisationBanque(ctx) {
   }
   const r = d.reponse;
   let soldeCompta = 0;
-  for (const l of ctx.lignes) if (l[COL.CompteNum] === '521000') soldeCompta += c(l[COL.Debit]) - c(l[COL.Credit]);
+  for (const l of ctx.lignes) if (estBanque(l[COL.CompteNum])) soldeCompta += c(l[COL.Debit]) - c(l[COL.Credit]);
   const it = itemDoc('CIRC-BANQUE', `${ctx.annee + 1}-01-25`, `Confirmation bancaire : solde ${euro(r.soldeCompte)}, capital restant dû ${euro(r.capitalRestantDu)}`, r.soldeCompte);
   return {
     html: `<p class="discret">Réponse reçue directement de la banque le ${dateFr(`${ctx.annee + 1}-01-25`)}.</p>

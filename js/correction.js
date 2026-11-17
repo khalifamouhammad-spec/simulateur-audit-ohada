@@ -151,7 +151,9 @@ function noterCycle(config, dossier, feuilles, documents) {
 /** Travaux : moyenne des cycles qui contenaient des anomalies (ceux qu'il fallait travailler). */
 function noterTravaux(dossier, feuilles, documents, anomalies) {
   const cycles = [...new Set(anomalies.map((a) => a.cycle))].filter((c) => CONFIGS_CYCLES[c]);
-  const retenus = cycles.length ? cycles : ['tresorerie'];
+  // Sans anomalie connue (dossier importé) : cycles effectivement travaillés.
+  const travailles = Object.values(CONFIGS_CYCLES).filter((c) => feuilles.some((f) => f.cycle === c.id)).map((c) => c.id);
+  const retenus = cycles.length ? cycles : travailles.length ? travailles : ['tresorerie'];
   const notes = retenus.map((c) => ({ c, ...noterCycle(CONFIGS_CYCLES[c], dossier, feuilles, documents) }));
   const moyenne = notes.reduce((s, x) => s + x.note, 0) / notes.length;
   const constats = [`Note moyenne des cycles qui comportaient des anomalies : ${notes.map((x) => `${CONFIGS_CYCLES[x.c].code} ${String(x.note).replace('.', ',')}`).join(' · ')}.`, ...notes.flatMap((x) => x.constats)];
@@ -284,7 +286,7 @@ function noterFinalisation(dossier, corrige, comparaison) {
   const propre = ajustements.filter((a) => a.decision !== 'corrigee').reduce((t, a) => t + Math.abs(impactResultat(a)), 0);
   const reel = cumulReel(corrige?.anomalies || [], comparaison, ajustements);
   const coherente = opinionPour(propre, seuilPropre);
-  const appropriee = opinionPour(reel, seuilRef);
+  const appropriee = corrige ? opinionPour(reel, seuilRef) : coherente; // sans corrigé, la réalité n'est pas connue
   if (!g4.opinion) constats.push("G4 : aucune opinion formulée.");
   else {
     if (g4.opinion === coherente) note += 5;
@@ -312,6 +314,7 @@ export function evaluerMission({ dossier, corrige, feuilles, documents, revue })
   const anomalies = corrige?.anomalies || [];
   const ajustements = dossier.ajustements || [];
   const comparaison = comparer(anomalies, ajustements, corrige?.donnees);
+  const importe = !corrige; // dossier importé : aucune anomalie connue, la détection n'est pas notée
   const sections = {
     detection: noterDetection(anomalies, comparaison, ajustements),
     travaux: noterTravaux(dossier, feuilles, documents, anomalies),
@@ -319,7 +322,9 @@ export function evaluerMission({ dossier, corrige, feuilles, documents, revue })
     seuils: noterSeuils(dossier),
     finalisation: noterFinalisation(dossier, corrige, comparaison),
   };
-  const globale = arrondi(Object.entries(PONDERATIONS).reduce((s, [k, poids]) => s + sections[k].note * poids, 0));
+  if (importe) delete sections.detection;
+  const poids = Object.entries(PONDERATIONS).filter(([k]) => sections[k]);
+  const globale = arrondi(poids.reduce((s, [k, p]) => s + sections[k].note * p, 0) / poids.reduce((s, [, p]) => s + p, 0));
   const ratees = comparaison.resultats.filter((r) => r.perimetre && !r.trouvee).map((r) => anomalies.find((a) => a.id === r.anomalieId));
   return {
     date: new Date().toISOString(), globale, sections, comparaison,
@@ -334,7 +339,7 @@ export function evaluerMission({ dossier, corrige, feuilles, documents, revue })
         return [c, { total: r.length, trouvees: r.filter((x) => x.trouvee).length }];
       }).filter(([, v]) => v.total)),
     },
-    ia: null, erreurIA: null,
+    importe, ia: null, erreurIA: null,
   };
 }
 
@@ -342,7 +347,7 @@ export function evaluerMission({ dossier, corrige, feuilles, documents, revue })
 export async function commenterParIA({ dossier, corrige, evaluation, feuilles, parametres }) {
   const N = REFERENTIELS[dossier.parametres.referentiel].normes;
   const t = (code, cle) => String(dossier.elements?.[code]?.donnees?.[cle] || '').slice(0, 700) || '(vide)';
-  const anomalies = corrige.anomalies;
+  const anomalies = corrige?.anomalies || [];
   const parId = new Map(anomalies.map((a) => [a.id, a]));
   const ajs = new Map((dossier.ajustements || []).map((a) => [a.id, a]));
   const decrire = (aj) => `« ${aj.description.slice(0, 200)} » — correction : ${aj.lignes.map((l) => `${lireNombre(l.debit) ? 'D' : 'C'} ${l.compte} ${lireNombre(l.debit) || lireNombre(l.credit)}`).join(', ')}`;

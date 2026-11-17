@@ -142,12 +142,13 @@ function afficherSynthese(contenu, dossier) {
   const ligne = (libelle, cle) => `<tr><td>${libelle}</td><td class="nombre">${euro(n[cle])}</td><td class="nombre">${euro(n1[cle])}</td><td class="nombre">${pctFr(variationPct(n[cle], n1[cle]))}</td></tr>`;
   contenu.innerHTML = `
     <h1>Synthèse du dossier</h1>
+    ${p.source === 'import' ? `<div class="message info"><strong>Dossier importé</strong> depuis ${echapper((dossier.import?.fichiers || []).join(' et '))}${dossier.import?.resumeN ? ` — ${dossier.import.resumeN.nbEcritures.toLocaleString('fr-FR')} écritures, du ${dateFr(dossier.import.resumeN.debut)} au ${dateFr(dossier.import.resumeN.fin)}` : ''}. Le logiciel ne connaît pas les anomalies de ce fichier : il n'y a pas de corrigé automatique.${dossier.import?.avertissements?.length ? `<ul>${dossier.import.avertissements.map((x) => `<li>${echapper(x)}</li>`).join('')}</ul>` : ''}</div>` : ''}
     ${dossier.statut === 'cloturee' && dossier.correction ? `<div class="message succes ligne espace"><span>Mission clôturée — note globale <strong>${String(dossier.correction.globale).replace('.', ',')} / 20</strong>. Le dossier est en consultation seule.</span><a class="bouton" href="#/dossier/${dossier.id}/H1">Voir le corrigé</a></div>` : ''}
     <div class="indicateurs">
       <div class="indicateur"><span>Secteur</span><strong>${echapper(SECTEURS[p.secteur])}</strong></div>
       <div class="indicateur"><span>Taille</span><strong>${TAILLES[p.taille].libelle} · ${c.effectif} salariés</strong></div>
-      <div class="indicateur"><span>Difficulté</span><strong>${NIVEAUX[p.difficulte].libelle}</strong></div>
-      <div class="indicateur"><span>Anomalies cachées</span><strong>${p.nbAnomalies}</strong></div>
+      <div class="indicateur"><span>Difficulté</span><strong>${p.source === 'import' ? 'Dossier importé' : NIVEAUX[p.difficulte].libelle}</strong></div>
+      <div class="indicateur"><span>Anomalies cachées</span><strong>${p.source === 'import' ? 'Inconnues' : p.nbAnomalies}</strong></div>
       <div class="indicateur"><span>Référentiel</span><strong>${echapper(REFERENTIELS[p.referentiel].normes)}</strong></div>
     </div>
     <div class="panneau">
@@ -158,7 +159,7 @@ function afficherSynthese(contenu, dossier) {
       <p><strong>Système d'information.</strong> ${echapper(c.systemeInformation)}</p>
       <p><strong>Contexte de la mission.</strong> ${echapper(c.contexteMission)}</p>
       ${c.faitsMarquants?.length ? `<p><strong>Faits marquants de l'exercice.</strong></p><ul>${c.faitsMarquants.map((f) => `<li>${echapper(f)}</li>`).join('')}</ul>` : ''}
-      <p class="discret">Scénario ${dossier.scenario.source === 'ia' ? "rédigé par l'IA" : 'issu du modèle intégré (sans IA)'} ; comptabilité générée et contrôlée par le logiciel.</p>
+      <p class="discret">${dossier.scenario.source === 'import' ? 'Comptabilité importée ; états recalculés et contrôlés par le logiciel.' : `Scénario ${dossier.scenario.source === 'ia' ? "rédigé par l'IA" : 'issu du modèle intégré (sans IA)'} ; comptabilité générée et contrôlée par le logiciel.`}</p>
     </div>
     <div class="panneau serre">
       <h2 class="titre-tableau">Chiffres clés (calculés à partir du journal)</h2>
