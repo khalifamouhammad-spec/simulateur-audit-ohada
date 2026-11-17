@@ -1,6 +1,6 @@
 // Paramètres : clé Groq (stockée uniquement dans ce navigateur), modèle, référentiel.
 import { REFERENTIELS, MODELE_GROQ_DEFAUT, VERSION_APP } from '../config.js';
-import { listerModeles } from '../groq.js';
+import { listerModeles, choisirModele } from '../groq.js';
 import { lireParametres, ecrireParametres } from '../db.js';
 import { echapper } from '../utils.js';
 
@@ -18,7 +18,7 @@ export async function afficherParametres(vue) {
         <label for="p-modele">Modèle</label>
         <input type="text" id="p-modele" list="p-modeles" value="${echapper(p.modele)}">
         <datalist id="p-modeles"><option value="${MODELE_GROQ_DEFAUT}"></datalist>
-        <p class="discret">Modèle par défaut : ${MODELE_GROQ_DEFAUT}. « Tester la connexion » charge la liste des modèles disponibles avec votre clé.</p>
+        <p class="discret">Modèle par défaut : ${MODELE_GROQ_DEFAUT}. « Tester la connexion » vérifie la clé et choisit automatiquement un modèle disponible si celui-ci ne l'est plus. Pour changer de modèle, videz le champ pour afficher la liste.</p>
         <div class="ligne"><button class="principal" data-enregistrer>Enregistrer</button><button data-tester>Tester la connexion</button><button class="danger" data-effacer>Effacer la clé</button></div>
         <div data-etat></div>
       </div>
@@ -50,11 +50,16 @@ export async function afficherParametres(vue) {
     try {
       const modeles = await listerModeles(formulaire().cleGroq);
       vue.querySelector('#p-modeles').innerHTML = modeles.map((m) => `<option value="${echapper(m)}">`).join('');
+      const demande = formulaire().modele;
+      let remplacement = null;
+      if (!modeles.includes(demande)) {
+        remplacement = choisirModele(modeles);
+        if (remplacement) vue.querySelector('#p-modele').value = remplacement;
+      }
       await ecrireParametres(formulaire());
-      const connu = modeles.includes(formulaire().modele);
-      message(connu ? 'succes' : 'attention', connu
-        ? `Connexion réussie : ${modeles.length} modèles disponibles. Clé enregistrée.`
-        : `Connexion réussie, mais le modèle « ${formulaire().modele} » n'est pas dans la liste : choisissez-en un autre dans le champ Modèle.`);
+      message('succes', remplacement
+        ? `Connexion réussie. Le modèle « ${demande} » n'est plus proposé par Groq : le modèle « ${remplacement} » a été choisi automatiquement et enregistré avec votre clé.`
+        : `Connexion réussie : ${modeles.length} modèles disponibles. Clé et modèle enregistrés.`);
     } catch (e) {
       message('erreur', e.message);
     }

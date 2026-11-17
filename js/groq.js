@@ -35,6 +35,17 @@ export async function listerModeles(cle) {
   return (r.data || []).map((m) => m.id).sort();
 }
 
+/**
+ * Choisit un modèle de conversation parmi ceux disponibles : écarte les modèles audio, de modération
+ * ou d'embedding, puis privilégie les plus grands modèles généralistes.
+ */
+export function choisirModele(modeles) {
+  const conversation = modeles.filter((m) => !/whisper|guard|tts|embed|playai|orpheus|distil|compound|vision/i.test(m));
+  const preferences = [/gpt-oss-120b/i, /llama-4-maverick/i, /kimi/i, /70b/i, /qwen.*32b/i, /llama-4-scout/i, /gpt-oss/i, /llama/i];
+  for (const motif of preferences) { const m = conversation.find((x) => motif.test(x)); if (m) return m; }
+  return conversation[0] || modeles[0] || null;
+}
+
 /** Appelle le modèle et renvoie l'objet JSON de sa réponse. */
 export async function demanderJSON({ cle, modele, systeme, utilisateur, temperature = 0.8, maxTokens = 8000 }) {
   const corps = JSON.stringify({
@@ -48,6 +59,16 @@ export async function demanderJSON({ cle, modele, systeme, utilisateur, temperat
   try {
     r = await appeler('/chat/completions', cle, { method: 'POST', body: corps });
   } catch (e) {
+    // Modèle retiré par Groq : on en choisit un disponible, on réessaie et on retient ce choix.
+    if (e.statut === 404 || (e.statut === 400 && /model/i.test(e.message))) {
+      const remplacement = choisirModele(await listerModeles(cle));
+      if (!remplacement || remplacement === modele) throw e;
+      try {
+        const { lireParametres, ecrireParametres } = await import('./db.js');
+        await ecrireParametres({ ...(await lireParametres()), modele: remplacement });
+      } catch { /* hors navigateur : pas d'enregistrement */ }
+      return demanderJSON({ cle, modele: remplacement, systeme, utilisateur, temperature, maxTokens });
+    }
     // Limite par minute : une seule nouvelle tentative après le délai indiqué.
     if (e.statut !== 429 || e.attente <= 0 || e.attente > 60) throw e;
     await attendre((e.attente + 1) * 1000);
